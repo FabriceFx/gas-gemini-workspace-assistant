@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html>
+<head>
+   <base target="_top">
+   <link href="https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@300;400;600;900&display=swap" rel="stylesheet">
+   <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  
+   <style>
+       :root {
+           --bleu-cooperl: #045973; [cite: 232]
+           --rose-cooperl: #F0861E; [cite: 237]
+           --text-main: #1F2937;
+           --bg: #F8FAFC;
+       }
+
+
+       body {
+           margin: 0;
+           font-family: 'Source Sans Pro', sans-serif; [cite: 246]
+           background-color: var(--bg);
+           display: flex;
+           flex-direction: column;
+           height: 100vh;
+       }
+
+
+       header {
+           background: var(--bleu); [cite: 194]
+           color: white;
+           padding: 15px 25px;
+           display: flex;
+           align-items: center;
+           justify-content: space-between;
+       }
+
+
+       header h1 {
+           margin: 0;
+           font-weight: 900;
+           text-transform: uppercase; [cite: 267]
+           letter-spacing: 1px;
+           font-size: 1.2rem;
+       }
+
+
+       .main-container {
+           display: flex;
+           flex: 1;
+           overflow: hidden;
+       }
+
+
+       .left-panel {
+           width: 320px;
+           background: white;
+           padding: 25px;
+           box-shadow: 2px 0 10px rgba(0,0,0,0.05);
+           display: flex;
+           flex-direction: column;
+           gap: 20px;
+       }
+
+
+       .chat-panel {
+           flex: 1;
+           padding: 30px;
+           overflow-y: auto;
+           display: flex;
+           flex-direction: column;
+           gap: 20px;
+       }
+
+
+       /* --- STYLES COMPOSANTS --- */
+       .card {
+           background: white;
+           padding: 20px;
+           border-radius: 8px;
+           border-left: 4px solid var(--bleu);
+           box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+       }
+
+
+       button.btn-primary {
+           background: var(--bleu);
+           color: white;
+           border: none;
+           padding: 12px;
+           font-weight: 600;
+           text-transform: uppercase; [cite: 267]
+           border-radius: 4px;
+           cursor: pointer;
+           width: 100%;
+       }
+
+
+       .badge-source {
+           /* ... vos styles actuels ... */
+           max-width: 100%; /* Évite que le badge ne sorte de la carte */
+           white-space: nowrap;
+           overflow: hidden;
+           text-overflow: ellipsis; /* Coupe proprement les titres trop longs */
+       }
+
+
+       .feedback-zone {
+           margin-top: 15px;
+           padding-top: 15px;
+           border-top: 1px solid #EEE;
+       }
+
+
+       .btn-vote { background: none; border: 1px solid #DDD; padding: 5px; cursor: pointer; border-radius: 4px; color: #666; }
+       .active-pos { border-color: #10B981; color: #10B981; }
+       .active-neg { border-color: #EF4444; color: #EF4444; }
+
+
+       .comm-area { display: none; margin-top: 10px; flex-direction: column; gap: 5px; }
+       textarea { border: 1px solid #DDD; border-radius: 4px; padding: 8px; resize: none; font-family: inherit; }
+   </style>
+</head>
+<body>
+
+
+<header>
+   <h1>Compagnon Digital Workspace</h1>
+   <div style="font-weight: 300;">IT Mentor</div>
+</header>
+
+
+<div class="main-container">
+   <div class="left-panel">
+       <div>
+           <label style="font-weight: 600; font-size: 0.8rem; text-transform: uppercase; color: var(--bleu);">Votre Expertise</label>
+           <select id="selectNiveau" onchange="changerNiveau(this.value)" style="width: 100%; padding: 8px; margin-top: 5px;">
+               <option value="Débutant">Débutant</option>
+               <option value="Intermédiaire">Intermédiaire</option>
+               <option value="Avancé">Avancé</option>
+               <option value="Expert">Expert</option>
+           </select>
+       </div>
+       <div style="flex:1;">
+           <label style="font-weight: 600; font-size: 0.8rem; text-transform: uppercase; color: var(--bleu);">Votre question</label>
+           <textarea id="userQuestion" style="width: 100%; height: 120px; margin-top: 5px;"></textarea>
+       </div>
+       <button class="btn-primary" onclick="poserQuestion()" id="btnSend">Envoyer</button>
+   </div>
+
+
+   <div class="chat-panel" id="chat">
+       <div id="empty-state" style="text-align: center; color: #999; margin-top: 100px;">
+           <span class="material-icons-round" style="font-size: 64px;">help_outline</span>
+           <p>Posez une question liée à Google Workspace à votre compagnon digital Workspace.</p>
+       </div>
+   </div>
+</div>
+
+
+<script>
+   let voteEnCours = null;
+
+
+   window.onload = () => {
+       document.getElementById('selectNiveau').value = "<?= niveauExpertise ?>";
+   };
+
+
+   function changerNiveau(v) {
+       google.script.run.sauvegarderNiveauExpertise(v);
+   }
+
+
+   async function poserQuestion() {
+       const q = document.getElementById('userQuestion').value;
+       const n = document.getElementById('selectNiveau').value;
+       const btn = document.getElementById('btnSend');
+      
+       if(!q) return;
+       document.getElementById('empty-state').style.display = 'none';
+       btn.disabled = true;
+       btn.innerText = "Réflexion...";
+
+
+       google.script.run.withSuccessHandler(res => {
+           btn.disabled = false;
+           btn.innerText = "Envoyer";
+           document.getElementById('userQuestion').value = "";
+           afficherReponse(q, res);
+       }).interrogerIA(q, n);
+   }
+
+
+   function afficherReponse(q, res) {
+       const id = Date.now();
+       const div = document.createElement('div');
+       div.className = 'card';
+       div.innerHTML = `
+           <div style="font-weight: 900; color: var(--bleu-cooperl); margin-bottom: 10px;">${q}</div>
+           <div id="text-${id}">${marked.parse(res.texte)}</div>
+           <div id="sources-${id}" style="margin-top: 10px;"></div>
+           <div class="feedback-zone" id="fb-${id}">
+               <button class="btn-vote" onclick="voter('${id}', true, '${q}')"><span class="material-icons-round">thumb_up</span></button>
+               <button class="btn-vote" onclick="voter('${id}', false, '${q}')"><span class="material-icons-round">thumb_down</span></button>
+               <div class="comm-area" id="comm-zone-${id}">
+                   <textarea id="txt-${id}" placeholder="Expliquez-nous pourquoi..."></textarea>
+                   <button class="btn-primary" style="padding: 5px;" onclick="finirFeedback('${id}', '${q}')">Valider</button>
+               </div>
+           </div>
+       `;
+
+
+       if (res.sources.length > 0) {
+           const sDiv = div.querySelector(`#sources-${id}`);
+           res.sources.forEach(s => {
+               sDiv.innerHTML += `<a href="${s.url}" target="_blank" class="badge-source"><span class="material-icons-round" style="font-size:14px; margin-right:4px;">open_in_new</span> ${s.titre}</a>`;
+           });
+       }
+       document.getElementById('chat').prepend(div);
+   }
+
+
+   function voter(id, pos, q) {
+       voteEnCours = pos;
+       const fb = document.getElementById(`fb-${id}`);
+       fb.querySelectorAll('.btn-vote')[0].className = pos ? 'btn-vote active-pos' : 'btn-vote';
+       fb.querySelectorAll('.btn-vote')[1].className = !pos ? 'btn-vote active-neg' : 'btn-vote';
+       document.getElementById(`comm-zone-${id}`).style.display = 'flex';
+   }
+
+
+   function finirFeedback(id, q) {
+       const comm = document.getElementById(`txt-${id}`).value;
+       const resp = document.getElementById(`text-${id}`).innerText;
+       google.script.run.enregistrerFeedback({ question: q, reponse: resp, estPositif: voteEnCours, commentaire: comm });
+       document.getElementById(`fb-${id}`).innerHTML = "<span style='color:#10B981; font-weight:600;'>Merci ! 🙌</span>";
+   }
+</script>
+</body>
+</html>
